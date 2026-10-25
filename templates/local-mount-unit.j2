@@ -1,0 +1,13 @@
+[Unit]
+Description=Mount {{ item.fstype }} volume {{ item.name }}
+After=local-fs-pre.target
+Wants=local-fs-pre.target
+
+[Mount]
+What=/dev/disk/by-uuid/{{ item.uuid }}
+Where={{ item.where }}
+Type={{ item.fstype }}
+Options={{ item.options }},nofail
+
+[Install]
+WantedBy=local-fs.target

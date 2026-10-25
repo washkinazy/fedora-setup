@@ -1,0 +1,21 @@
+# Tooling config only — this project is a pyinfra deploy, not an installable package.
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors (includes E501 line-too-long)
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplify
+    "C4",   # comprehensions
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.format]
+quote-style = "double"

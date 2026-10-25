@@ -1,0 +1,19 @@
+polkit.addRule(function(action, subject) {
+    var mountActions = [
+        // Local & USB block devices (udisks2)
+        "org.freedesktop.udisks2.filesystem-mount",
+        "org.freedesktop.udisks2.filesystem-mount-other-seat",
+        "org.freedesktop.udisks2.filesystem-mount-system",
+        "org.freedesktop.udisks2.open-device",
+        // Removable / external drives
+        "org.freedesktop.udisks2.eject-media",
+        "org.freedesktop.udisks2.power-off-drive",
+        // Loop devices
+        "org.freedesktop.udisks2.loop-setup",
+    ];
+
+    if (mountActions.indexOf(action.id) !== -1 &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

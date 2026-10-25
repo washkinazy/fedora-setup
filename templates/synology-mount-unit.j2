@@ -1,0 +1,11 @@
+[Unit]
+Description=Mount CIFS Network Share {{ item.name }}
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What={{ item.what }}
+Where={{ item.where }}
+Type=cifs
+Options=rw,guest,noperm,netbiosname={{ hostname }},soft,_netdev,nofail,cache=none
+TimeoutSec=15

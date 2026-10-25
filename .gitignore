@@ -1,0 +1,50 @@
+# Log files
+*.log
+/var/log/fedora-setup/
+
+# Backup files
+*.backup
+*.bak
+*~
+.*.swp
+.*.swo
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-*
+.claude/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Package management
+*.rpm
+*.deb
+
+# Logs and databases
+*.sqlite
+*.db
+
+# References
+.hypr-reference
+.user-reference
+
+# pyinfra
+.pyinfra-facts/
+/inventory.py
+
+# Ruff
+.ruff_cache/

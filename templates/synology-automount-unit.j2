@@ -1,0 +1,11 @@
+[Unit]
+Description=Automount CIFS Network Share {{ item.name }}
+DefaultDependencies=no
+After=network-online.target
+
+[Automount]
+Where={{ item.where }}
+TimeoutIdleSec=300
+
+[Install]
+WantedBy=remote-fs.target

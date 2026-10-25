@@ -1,0 +1,41 @@
+---
+# Run with `task <target>`. The Fedora package is `go-task`
+# but the binary it installs is `task`.
+version: '3'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  lint:
+    desc: Lint and format-check everything
+    cmds:
+      - ruff check .
+      - ruff format --check .
+      - shellcheck setup.sh files/rebind-logitech-mouse.sh
+      - yamllint Taskfile.yml
+
+  fmt:
+    desc: Apply formatting fixes
+    cmds:
+      - ruff check --fix .
+      - ruff format .
+
+  check:
+    desc: Compile Python and validate operations and assets
+    cmds:
+      - python -m compileall -q .
+      - python scripts/validate_operations.py
+
+  dry:
+    desc: Dry-run the deploy (needs a real tty for sudo)
+    cmds:
+      - pyinfra inventory.py deploy.py --sudo --dry
+
+  deploy:
+    desc: Run the full deploy
+    cmds:
+      - ./setup.sh
