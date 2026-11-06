@@ -6,7 +6,7 @@ import subprocess
 from pyinfra.context import host
 from pyinfra.operations import dnf, files, server, systemd
 
-features = host.data.get("features") or {}
+network_mounts = host.data.get("storage_mounts") or []
 
 
 def _unit_stem(path):
@@ -22,16 +22,13 @@ def _unit_stem(path):
 
 # --- Synology NAS CIFS mounts ---
 
-if features.get("synology"):
-    # cifs-utils lives here rather than in PACKAGES because this module runs
-    # before modules/packages.py — anything the mounts depend on has to be
-    # installed by the module that needs it.
+if network_mounts:
     dnf.packages(
         name="Install cifs-utils",
         packages=["cifs-utils"],
     )
 
-    for mount in host.data.get("storage_mounts") or []:
+    for mount in network_mounts:
         stem = _unit_stem(mount["where"])
 
         mount_unit = files.template(
@@ -63,8 +60,6 @@ if features.get("synology"):
             mode="0755",
         )
 
-        # running=True as well as enabled=True: an automount that is enabled but
-        # not started never triggers a mount.
         units_changed = mount_unit.will_change or automount_unit.will_change
         systemd.service(
             name=f"Enable {mount['name']} automount",
@@ -76,10 +71,7 @@ if features.get("synology"):
         )
 
 # --- Local disk mounts (BTRFS subvolumes) — mounted at boot with nofail ---
-# Skip any device that isn't currently attached (UUID not present).
 
-# Create any shared groups referenced by local mounts before chowning the
-# mountpoints to them.
 for group_name in sorted(
     {m["dir_group"] for m in (host.data.get("local_mounts") or []) if m.get("dir_group")}
 ):
@@ -112,9 +104,7 @@ for mount in host.data.get("local_mounts") or []:
         mode=mount.get("dir_mode", "0755"),
     )
 
-    # restarted= is the important part: with only running=True a changed unit is
-    # daemon-reloaded but systemd sees it already active and does nothing, so new
-    # Options=/What= were written to disk and never actually applied.
+    # Restart changed mount units to apply new options.
     systemd.service(
         name=f"Mount {mount['name']}",
         service=f"{stem}.mount",

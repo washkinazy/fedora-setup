@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Validate this deploy without building it: operation signatures and asset references.
-
-pyinfra only reports a bad keyword argument, a missing `src`, or a template that
-references an unprovided variable when the deploy actually builds, which needs sudo
-and a tty. This check runs anywhere: it parses the modules with `ast` and, for each
-`<module>.<operation>(...)` call,
-  - validates the keyword arguments against the real operation signature, and
-  - for files.put/files.template, checks the `src` file exists, and for
-    files.template also checks every variable the template references is passed at
-    the call site.
-
-Usage: python scripts/validate_operations.py
-"""
+"""Validate this deploy without building it: operation signatures and asset references."""
 
 from __future__ import annotations
 
@@ -22,8 +10,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Isolated tool venvs that the system interpreter cannot see: `uv tool install`
-# (what setup.sh uses) and pipx (what earlier revisions of setup.sh used).
+# Search uv and pipx environments when pyinfra is not on sys.path.
 TOOL_VENV_LIBS = (
     Path.home() / ".local/share/uv/tools/pyinfra/lib",
     Path.home() / ".local/share/pipx/venvs/pyinfra/lib",
@@ -32,11 +19,7 @@ TOOL_VENV_LIBS = (
 
 
 def _ensure_pyinfra_importable() -> None:
-    """Make pyinfra importable however this script was invoked.
-
-    Falls back to a tool venv's site-packages so `python scripts/validate_operations.py`
-    works directly with the system interpreter.
-    """
+    """Make pyinfra importable however this script was invoked."""
     try:
         import pyinfra  # noqa: F401
     except ModuleNotFoundError:
@@ -62,10 +45,13 @@ from jinja2 import meta as jinja2_meta  # noqa: E402
 from pyinfra import operations  # noqa: E402
 from pyinfra.api.arguments import all_global_arguments  # noqa: E402
 
-TARGETS = [*sorted((REPO_ROOT / "modules").glob("*.py")), REPO_ROOT / "deploy.py"]
+TARGETS = [
+    *sorted((REPO_ROOT / "modules").glob("*.py")),
+    REPO_ROOT / "deploy.py",
+    REPO_ROOT / "packages/repos.py",
+]
 
-# Operations whose `src` names a file in this repo (checked for existence); the
-# value says whether the call also passes Jinja variables to validate.
+# Whether each file operation also validates template variables.
 ASSET_OPS = {"put": False, "template": True}
 
 
@@ -82,6 +68,8 @@ def _operation_calls(tree: ast.AST):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
+        if isinstance(func, ast.Name) and func.id == "install_packages":
+            yield "dnf", "packages", node
         if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
             yield func.value.id, func.attr, node
 

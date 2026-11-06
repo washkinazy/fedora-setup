@@ -1,26 +1,8 @@
-"""Package lists for system, desktop, development, and gaming.
+"""Package selections and their required third-party sources.
 
-Groups are split by source. NAME holds what the official Fedora repos carry, and
-NAME_<REPO> holds packages for which that third-party repository (a key of REPOS
-in packages/repos.py, upper-cased) is the only source. A package that both Fedora
-and a third-party repo ship stays in the base list — dnf resolves the newer build
-— with a comment naming the other source.
-
-modules/packages.py includes each NAME_<REPO> half only when its repository
-toggle is enabled. Only groups that actually draw from a third-party repo have a
-half for it, since an empty half per repo per group would drown the lists. Fedora
-package groups (`@name`) and Flatpak ids are not split — the former are official
-by definition and the latter resolve from Flathub, not dnf.
+Fedora supplies packages unless PACKAGE_REPOSITORIES explicitly names a source.
+Selections are grouped by purpose; repository mappings only describe sources.
 """
-
-
-def with_repo_packages(base, toggles, *repo_groups):
-    """Return base plus package groups whose repository toggle is enabled."""
-    selected = list(base)
-    for repo_keys, packages in repo_groups:
-        if any(toggles.get(key, False) for key in repo_keys):
-            selected.extend(packages)
-    return selected
 
 
 # --- Base system ---
@@ -36,31 +18,21 @@ PACKAGE_GROUPS = [
 ]
 
 PACKAGES = [
-    # Firmware & microcode
+    # Additional firmware
     "linux-firmware",
-    "amd-gpu-firmware",
-    "amd-ucode-firmware",
-    "intel-gpu-firmware",
-    "nvidia-gpu-firmware",
-    "microcode_ctl",
     # Core system
-    "sudo",
-    "systemd-udev",
     "openssl",
-    "bash-completion",
     # Power
     "tuned",
     "tuned-ppd",
     # Shell & CLI utilities
     "vim",
     "git",
-    "curl",
-    "wget2-wget",
-    "rsync",
     "chezmoi",
     "trash-cli",
     "cabextract",
     "mc",
+    "pipx",
     # System monitoring & info
     "btop",
     "nvtop",
@@ -71,7 +43,6 @@ PACKAGES = [
     "inxi",
     "fastfetch",
     # Printing
-    "hplip",
     "system-config-printer",
     # Multimedia libraries
     "libmediainfo",
@@ -90,19 +61,14 @@ PACKAGES = [
     "fuse-libs",
 ]
 
-# Terra names its Nerd Fonts builds <family>-nerd-fonts (one package per family,
-# `nerd-fonts` for the whole set) and ships Iosevka as belleve-invis-iosevka-*.
-FONTS_TERRA = [
+
+FONTS = [
     # Nerd Fonts
     "firacode-nerd-fonts",
     "cascadiacode-nerd-fonts",
     "jetbrainsmono-nerd-fonts",
     "iosevka-nerd-fonts",
-    # Iosevka proper (unpatched); -fonts-all pulls every variant
     "belleve-invis-iosevka-fonts",
-]
-
-FONTS = [
     "fontawesome-6-free-fonts",
     "fontawesome-6-brands-fonts",
     "fontawesome4-fonts",
@@ -116,85 +82,71 @@ FLATPAK_MANAGEMENT = [
     "io.github.flattool.Warehouse",
 ]
 
-# --- GPU drivers ---
-# Selected at deploy time from the GPUs actually on the PCI bus; see
-# modules/hardware.py. AMD and Intel need nothing here: their kernel drivers are
-# in-tree, Mesa is pulled in by @base-graphical and the firmware is in PACKAGES.
+# --- Multimedia codecs ---
 
-# Negativo17's standalone NVIDIA stack. `akmod-nvidia` is the open kernel module (built
-# from NVIDIA's kernel-module-source `kernel-open/` tree) as an akmod: built
-# against the running kernel, signed with the akmods MOK key on Secure Boot
-# systems, and the initramfs regenerated. It is listed explicitly because
-# nvidia-kmod-common only requires *a* provider of nvidia-kmod, and dnf would
-# otherwise pick between the akmod, dkms and prebuilt kmod variants itself.
-# The CUDA-repo `nvidia-open` package does none of the akmod work, and mixing it
-# with a distro-built driver produced version-mismatched modules that failed
-# NVKMS init.
-NVIDIA_NEGATIVO17_NVIDIA = [
-    "akmod-nvidia",
-    "nvidia-driver",
-    "nvidia-driver-cuda",
-    "nvidia-persistenced",  # daemon enabled in modules/hardware.py
+
+MULTIMEDIA = [
+    "gstreamer1-plugins-base",
+    "gstreamer1-plugins-good",
+    "gstreamer1-plugins-bad-free",
+    "gstreamer1-plugin-libav",
+    "gstreamer1-plugin-openh264",
+    "ffmpeg",
+    "vlc-plugins-freeworld",
+    "gstreamer1-plugins-bad-freeworld",
+    "gstreamer1-plugins-ugly",
+    "openh264",
+    "mozilla-openh264",
 ]
+
+# --- Secret storage ---
+
+KEYRING_GNOME = ["gnome-keyring", "gnome-keyring-pam"]
+KEYRING_OO7 = ["oo7-daemon", "oo7-portal", "pam_oo7"]
+
+
+def keyring_packages(fedora_major):
+    if not isinstance(fedora_major, int) or fedora_major < 1:
+        raise ValueError("Cannot select keyring packages without a Fedora release version")
+    return list(KEYRING_OO7 if fedora_major >= 45 else KEYRING_GNOME)
+
+
+# --- GPU drivers ---
+
 
 NVIDIA = [
-    *NVIDIA_NEGATIVO17_NVIDIA,
+    "nvidia-open",
 ]
+
+NVIDIA_BUILD_PACKAGES = ["kernel-devel-matched", "dkms"]
 
 # --- Desktop environment ---
-# Mirrors the arch-setup layout: WAYLAND_WM_COMMON holds only what Noctalia does
-# not provide, NOCTALIA is the shell, and each compositor list splats both in.
-# Fedora names differ from Arch's in places; the Arch name is noted inline.
 
-WAYLAND_WM_COMMON_TERRA_OR_COPR_HYPRLAND = [
-    # Also in copr_hyprland; not in Fedora proper.
-    "uwsm",
-]
 
-WAYLAND_WM_COMMON_TERRA = [
-    # The shared dotfiles provide a user service that inhibits idle while audio plays.
-    "sway-audio-idle-inhibit",
-]
-
-# Session-level pieces that Noctalia does NOT provide, splatted into every
-# compositor below. The bar, launcher, notifications, wallpaper, lockscreen, idle
-# handling and the network/bluetooth/audio applets are the shell's job — see
-# NOCTALIA.
 WAYLAND_WM_COMMON = [
+    "uwsm",
+    "sway-audio-idle-inhibit",
     # Authentication & secrets
-    "kf6-kwallet",  # arch: kwallet
-    "pam-kwallet",  # arch: kwallet-pam
-    "polkit-kde",  # arch: polkit-kde-agent
-    # Session startup commands used by the shared niri/Hyprland dotfiles
+    "mate-polkit",
     "xdg-user-dirs",
     "xdg-user-dirs-gtk",
-    # Backends the shell drives rather than replaces
     "brightnessctl",
     "playerctl",
-    # Qt/GTK application theming (Noctalia themes itself, not your Qt apps)
+    # Qt/GTK application theming
     "qt6ct",
     "qt5ct",
 ]
 
-# Noctalia is the desktop shell for both Wayland compositors below. Fedora 44+
-# packages it; the lionheartp/Hyprland COPR also carries noctalia-shell,
-# noctalia-git and a v5 pre-release. Verify the name on the live system.
-# power-profiles-daemon is a listed optdep but is deliberately absent: tuned-ppd
-# in PACKAGES already provides it and the two conflict.
 NOCTALIA = [
     "noctalia",
-    "ddcutil",  # optdep: external monitor brightness over DDC/CI
-    "upower",  # optdep: battery and power device integration
+    "ddcutil",
+    "upower",
 ]
 
-# Minimal desktop environments, not the full workstation package set.
 KDE = ["@kde-desktop"]
 GNOME = ["@gnome-desktop"]
 COSMIC = ["@cosmic-desktop"]
 
-# Base WM package sets.
-# niri is in the official repos as well; copr_niri only supplies a newer build,
-# so the compositor keeps working with that toggle off.
 NIRI = [
     "niri",
     "xwayland-satellite",
@@ -203,39 +155,26 @@ NIRI = [
     *NOCTALIA,
 ]
 
-# Based on the arch-setup HYPRLAND list. Fedora proper carries none of these, so
-# the whole compositor set is the COPR half. Hyprland has XWayland built in.
-# hyprpaper/hyprlock/hypridle are intentionally omitted: Noctalia provides the
-# wallpaper, lockscreen and idle roles (see NOCTALIA above).
-HYPRLAND_COPR_HYPRLAND = [
+
+HYPRLAND = [
     "hyprland",
     "xdg-desktop-portal-hyprland",
     "hyprshutdown",
     "hyprlauncher",
     "hyprsunset",
-    "hyprpolkitagent",
     "hyprland-guiutils",
-]
-
-HYPRLAND = [
-    # The dotfiles autostart this bridge everywhere except niri.
     "xwaylandvideobridge",
     *WAYLAND_WM_COMMON,
     *NOCTALIA,
 ]
 
-# zed-cli supplies /usr/bin/zed, which upstream's install.sh used to put on PATH.
-DESKTOP_APPS_TERRA = [
-    "zed",
-    "zed-cli",
-]
 
 DESKTOP_APPS = [
     # Terminals & shell
     "alacritty",
     "kitty",
     "fish",
-    # File manager (Dolphin + KDE integration)
+    # File manager and extensions
     "dolphin",
     "dolphin-plugins",
     "ark",
@@ -244,15 +183,9 @@ DESKTOP_APPS = [
     "gnome-disk-utility",
     "udiskie",
     # Archives
-    "unzip",
-    # Fedora's unrar-free wrapper. RARLAB's unrar is in terra-extras and RPM
-    # Fusion nonfree, neither of which is on.
     "unrar",
     "p7zip",
     "p7zip-plugins",
-    "zip",
-    "bzip2",
-    # Used by the fix-jpg-meta and fix-bad-images Fish functions.
     "perl-Image-ExifTool",
     # Media & viewers & editors
     "okular",
@@ -260,51 +193,50 @@ DESKTOP_APPS = [
     "kwrite",
     "kcalc",
     "gwenview",
-    # Office is part of the KDE Spin baseline and stays native.
+    # "zathura",
+    # "zathura-pdf-poppler",
+    # "mousepad",
+    # "qalculate-gtk",
+    # "ristretto",
+    "gimp",
+    "inkscape",
     "@libreoffice",
-    # Firefox is part of the KDE Spin baseline and stays native.
-    "firefox",
+    "@firefox",
+    "chromium",
+    "librewolf",
+    "vlc",
+    "rawtherapee",
+    "darktable",
 ]
 
+SLACK_RPM_URL = "https://slack.com/api/desktop.latestRelease?arch=x64&variant=rpm&redirect=true"
+
 FLATPAK_APPS = [
-    "org.mozilla.firefox",
     "org.torproject.torbrowser-launcher",
     "com.discordapp.Discord",
     "com.bitwarden.desktop",
     "it.mijorus.gearlever",
     "hu.irl.cameractrls",
     "fr.handbrake.ghb",
-    "com.slack.Slack",
-    # Applications beyond the Fedora KDE Spin baseline live in Flatpak.
-    "org.chromium.Chromium",
     "app.zen_browser.zen",
-    "io.gitlab.librewolf-community",
-    "org.videolan.VLC",
     "com.spotify.Client",
-    "org.inkscape.Inkscape",
-    "org.gimp.GIMP",
-    "com.rawtherapee.RawTherapee",
 ]
 
 # --- Development ---
 
 DEV_PACKAGES = [
-    "gh",  # also in gh_cli, which supplies the current upstream release
+    "codium",
+    "zed",
+    "zed-cli",
+    "gh",
     "just",
-    "go-task",  # the binary is `task`
+    "go-task",
     "ruff",
     "yamllint",
     "shellcheck",
     "jq",
-    "pipx",
 ]
 
-DEV_PACKAGES_VSCODIUM = [
-    "codium",
-]
-
-# Language toolchains and their version manager are user-scope concerns and are
-# deliberately not managed here.
 
 CONTAINER_TOOLS = [
     "distrobox",
@@ -324,8 +256,6 @@ FLATPAK_CONTAINER_TOOLS = [
 
 # --- Tailscale ---
 
-# Fedora carries tailscale too; the tailscale repo supplies the current upstream
-# release, so the install still resolves with that toggle off.
 TAILSCALE = [
     "tailscale",
 ]
@@ -333,6 +263,7 @@ TAILSCALE = [
 # --- Gaming ---
 
 GAMING_PACKAGES = [
+    "steam",
     # Vulkan
     "vulkan-loader",
     "vulkan-tools",
@@ -346,9 +277,37 @@ GAMING_PACKAGES = [
 ]
 
 GAMING_FLATPAK_APPS = [
-    "com.valvesoftware.Steam",
     "com.github.Matoking.protontricks",
     "net.davidotek.pupgui2",
     "com.usebottles.bottles",
     "com.heroicgameslauncher.hgl",
 ]
+
+
+PACKAGE_REPOSITORIES = {
+    "ffmpeg": "rpmfusion_free",
+    "vlc-plugins-freeworld": "rpmfusion_free",
+    "gstreamer1-plugins-bad-freeworld": "rpmfusion_free",
+    "gstreamer1-plugins-ugly": "rpmfusion_free",
+    "openh264": "fedora_cisco_openh264",
+    "mozilla-openh264": "fedora_cisco_openh264",
+    "librewolf": "librewolf",
+    "steam": "rpmfusion_nonfree_steam",
+    "nvidia-open": "nvidia_cuda",
+    "codium": "vscodium",
+    "hyprland": "copr_hyprland",
+    "xdg-desktop-portal-hyprland": "copr_hyprland",
+    "hyprshutdown": "copr_hyprland",
+    "hyprlauncher": "copr_hyprland",
+    "hyprsunset": "copr_hyprland",
+    "hyprland-guiutils": "copr_hyprland",
+    "firacode-nerd-fonts": "terra",
+    "cascadiacode-nerd-fonts": "terra",
+    "jetbrainsmono-nerd-fonts": "terra",
+    "iosevka-nerd-fonts": "terra",
+    "belleve-invis-iosevka-fonts": "terra",
+    "zed": "terra",
+    "zed-cli": "terra",
+    "sway-audio-idle-inhibit": "terra",
+    "uwsm": "terra",
+}
