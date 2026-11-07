@@ -5,8 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 readonly PYINFRA_SPEC="pyinfra>=3.10,<4"
+readonly PYINFRA_PYTHON="3.14"
 
 SUDO_KEEPALIVE_PID=""
+PYINFRA_BIN=""
 
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >&2
@@ -45,8 +47,7 @@ check_fedora() {
     log "Detected OS: Fedora"
 }
 
-# Warm the sudo timestamp and hold it open for the whole deploy, so a long run
-# never stalls on a re-prompt against stdout that pyinfra has captured.
+# Keep sudo credentials alive during the deploy.
 start_sudo_keepalive() {
     if ! sudo -v; then
         error "sudo authentication failed"
@@ -73,19 +74,25 @@ update_system() {
     fi
 }
 
-ensure_uv() {
-    if command -v uv &> /dev/null; then
-        return 0
+configure_repository_policy() {
+    local policy_file policy_path
+    policy_file="$(mktemp)"
+    policy_path="/etc/dnf/repos.override.d/99-zz-fedora-setup.repo"
+    if ! (cd "$SCRIPT_DIR" && python3 -m packages.repo_policy) > "$policy_file"; then
+        rm -f "$policy_file"
+        error "Failed to render repository policy"
     fi
-
-    log "Installing uv..."
-    if ! sudo dnf install -y uv; then
-        error "Failed to install uv"
+    if ! sudo cmp -s "$policy_file" "$policy_path"; then
+        log "Configuring package bindings and repository priorities..."
+        if ! sudo install -D -o root -g root -m 0644 "$policy_file" "$policy_path"; then
+            rm -f "$policy_file"
+            error "Failed to install repository policy"
+        fi
     fi
+    rm -f "$policy_file"
 }
 
-# Single source of truth for locating pyinfra; uv installs into ~/.local/bin, which
-# is not always on PATH for non-login shells.
+# uv installs pyinfra in ~/.local/bin, which may be absent from PATH.
 find_pyinfra() {
     local bin
     bin="$(command -v pyinfra || true)"
@@ -95,38 +102,34 @@ find_pyinfra() {
     printf '%s' "$bin"
 }
 
-ensure_pyinfra() {
-    local bin
-    bin="$(find_pyinfra)"
-    if [[ -n "$bin" ]]; then
-        log "pyinfra is already installed: $("$bin" --version)"
-        return 0
-    fi
-
-    # Pinned to the 3.x line the deploy is written against: `_if=` and
-    # `did_change`/`will_change` on operation results.
-    log "Installing pyinfra..."
-    if ! uv tool install "${PYINFRA_SPEC}"; then
-        error "Failed to install pyinfra"
-    fi
-}
-
 ensure_tooling() {
     local dry_run="$1"
-    local bin
-    bin="$(find_pyinfra)"
-
-    if [[ -n "$bin" ]]; then
-        log "pyinfra is already installed: $("$bin" --version)"
+    local version
+    PYINFRA_BIN="$(find_pyinfra)"
+    if [[ -n "$PYINFRA_BIN" ]] && version="$("$PYINFRA_BIN" --version 2>&1)"; then
+        log "pyinfra is already installed: $version"
         return 0
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        error "pyinfra is required for --dry-run; install it first (dry-run never installs tools)"
+        error "A working pyinfra is required for --dry-run; run setup without --dry-run to install or repair it (dry-run never installs tools)"
     fi
 
-    ensure_uv
-    ensure_pyinfra
+    if ! command -v uv &> /dev/null; then
+        log "Installing uv..."
+        sudo dnf install -y uv || error "Failed to install uv"
+    fi
+
+    log "Installing or repairing pyinfra with managed Python ${PYINFRA_PYTHON}..."
+    uv python install "$PYINFRA_PYTHON" || error "Failed to install managed Python"
+    uv tool install --python "$PYINFRA_PYTHON" --managed-python --force --reinstall \
+        "${PYINFRA_SPEC}" || error "Failed to install pyinfra"
+    PYINFRA_BIN="$(find_pyinfra)"
+    [[ -n "$PYINFRA_BIN" ]] || error "pyinfra executable not found after installation"
+    if ! version="$("$PYINFRA_BIN" --version 2>&1)"; then
+        error "pyinfra is still unusable at $PYINFRA_BIN: $version"
+    fi
+    log "pyinfra ready: $version"
 }
 
 require_inventory() {
@@ -138,16 +141,7 @@ require_inventory() {
 run_pyinfra() {
     local dry_run="$1"
 
-    local pyinfra_bin
-    pyinfra_bin="$(find_pyinfra)"
-    if [[ -z "$pyinfra_bin" ]]; then
-        error "pyinfra executable not found on PATH or in ~/.local/bin"
-    fi
-
-    # deploy.py's include() calls, every files/ and templates/ src, the
-    # packages.* imports and config.py all resolve against the CWD, not
-    # against the script location. Without this the deploy only works when
-    # invoked from its own directory.
+    # Resolve deployment assets relative to the project directory.
     cd "$SCRIPT_DIR" || error "Cannot enter $SCRIPT_DIR"
 
     local pyinfra_args=(
@@ -163,7 +157,7 @@ run_pyinfra() {
         log "Executing deploy..."
     fi
 
-    if ! "$pyinfra_bin" "${pyinfra_args[@]}"; then
+    if ! "$PYINFRA_BIN" "${pyinfra_args[@]}"; then
         error "pyinfra deploy failed"
     fi
 }
@@ -199,10 +193,14 @@ main() {
 
     check_fedora
     require_inventory
-    ensure_tooling "$dry_run"
 
     trap stop_sudo_keepalive EXIT
     start_sudo_keepalive
+
+    if [[ "$dry_run" == "false" ]]; then
+        configure_repository_policy
+    fi
+    ensure_tooling "$dry_run"
 
     if [[ "$skip_update" == "false" ]]; then
         update_system

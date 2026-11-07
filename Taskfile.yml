@@ -1,6 +1,4 @@
 ---
-# Run with `task <target>`. The Fedora package is `go-task`
-# but the binary it installs is `task`.
 version: '3'
 
 tasks:
@@ -29,11 +27,12 @@ tasks:
     cmds:
       - python -m compileall -q .
       - python scripts/validate_operations.py
+      - python -m unittest discover -s tests
 
   dry:
     desc: Dry-run the deploy (needs a real tty for sudo)
     cmds:
-      - pyinfra inventory.py deploy.py --sudo --dry
+      - ./setup.sh --dry-run
 
   deploy:
     desc: Run the full deploy
