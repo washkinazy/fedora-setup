@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 readonly PYINFRA_SPEC="pyinfra>=3.10,<4"
+readonly PYINFRA_PYTHON="3.14"
 
 SUDO_KEEPALIVE_PID=""
 PYINFRA_BIN=""
@@ -103,14 +104,15 @@ find_pyinfra() {
 
 ensure_tooling() {
     local dry_run="$1"
+    local version
     PYINFRA_BIN="$(find_pyinfra)"
-    if [[ -n "$PYINFRA_BIN" ]]; then
-        log "pyinfra is already installed: $("$PYINFRA_BIN" --version)"
+    if [[ -n "$PYINFRA_BIN" ]] && version="$("$PYINFRA_BIN" --version 2>&1)"; then
+        log "pyinfra is already installed: $version"
         return 0
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        error "pyinfra is required for --dry-run; install it first (dry-run never installs tools)"
+        error "A working pyinfra is required for --dry-run; run setup without --dry-run to install or repair it (dry-run never installs tools)"
     fi
 
     if ! command -v uv &> /dev/null; then
@@ -118,10 +120,16 @@ ensure_tooling() {
         sudo dnf install -y uv || error "Failed to install uv"
     fi
 
-    log "Installing pyinfra..."
-    uv tool install "${PYINFRA_SPEC}" || error "Failed to install pyinfra"
+    log "Installing or repairing pyinfra with managed Python ${PYINFRA_PYTHON}..."
+    uv python install "$PYINFRA_PYTHON" || error "Failed to install managed Python"
+    uv tool install --python "$PYINFRA_PYTHON" --managed-python --force --reinstall \
+        "${PYINFRA_SPEC}" || error "Failed to install pyinfra"
     PYINFRA_BIN="$(find_pyinfra)"
     [[ -n "$PYINFRA_BIN" ]] || error "pyinfra executable not found after installation"
+    if ! version="$("$PYINFRA_BIN" --version 2>&1)"; then
+        error "pyinfra is still unusable at $PYINFRA_BIN: $version"
+    fi
+    log "pyinfra ready: $version"
 }
 
 require_inventory() {

@@ -166,6 +166,7 @@ COSMIC = ["@cosmic-desktop"]
 
 NIRI = [
     "niri",
+    "vigil",
     "xwayland-satellite",
     "xdg-desktop-portal-gnome",
     *WAYLAND_WM_COMMON,
@@ -315,6 +316,7 @@ PACKAGE_REPOSITORIES = {
     "xorg-x11-drv-nvidia-cuda": "rpmfusion_nonfree_nvidia",
     "codium": "vscodium",
     "hyprland": "copr_hyprland",
+    "vigil": "copr_vigil",
     "python3-waypaper": "terra",
     "xdg-desktop-portal-hyprland": "copr_hyprland",
     "hyprshutdown": "copr_hyprland",
