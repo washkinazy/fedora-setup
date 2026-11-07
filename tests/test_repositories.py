@@ -72,7 +72,8 @@ class RepositorySelectionTests(unittest.TestCase):
 
     def test_enabled_source_converges_and_unrelated_repo_is_untouched(self):
         self.read_states.return_value = {
-            "cuda-fedora44-x86_64": "enabled",
+            "rpmfusion-nonfree-nvidia-driver": "enabled",
+            "cuda-fedora44-x86_64": "disabled",
             "gitlab.com_paulcarroty_vscodium_repo": "enabled",
         }
         repos.install_packages(name="NVIDIA", packages=NVIDIA)
@@ -80,12 +81,36 @@ class RepositorySelectionTests(unittest.TestCase):
         self.assertEqual(self.commands(), [])
 
     def test_existing_disabled_source_is_enabled_not_registered(self):
-        self.read_states.return_value = {"cuda-fedora44-x86_64": "disabled"}
+        self.read_states.return_value = {"rpmfusion-nonfree-nvidia-driver": "disabled"}
         repos.install_packages(name="NVIDIA", packages=NVIDIA)
         self.assertEqual(
             self.commands(),
-            ["dnf config-manager setopt cuda-fedora44-x86_64.enabled=1", "dnf makecache --refresh"],
+            [
+                "dnf config-manager setopt rpmfusion-nonfree-nvidia-driver.enabled=1",
+                "dnf makecache --refresh",
+            ],
         )
+
+    def test_nvidia_bootstraps_definition_before_drivers_and_only_once(self):
+        self.read_states.return_value = {"cuda-fedora44-x86_64": "enabled"}
+        repos.install_packages(name="NVIDIA", packages=NVIDIA)
+        self.assertEqual(
+            self.commands(),
+            [
+                "dnf config-manager setopt rpmfusion-nonfree-nvidia-driver.enabled=1",
+                "dnf makecache --refresh",
+            ],
+        )
+        self.assertEqual(self.calls[-1][1]["packages"], NVIDIA)
+        self.assertEqual(self.calls[1][1]["packages"], ["fedora-workstation-repositories"])
+        self.assertEqual(
+            set(NVIDIA),
+            {"xorg-x11-drv-nvidia", "akmod-nvidia-open", "xorg-x11-drv-nvidia-cuda"},
+        )
+        self.calls.clear()
+        repos.install_packages(name="NVIDIA again", packages=NVIDIA)
+        self.assertEqual(self.commands(), [])
+        self.assertEqual(len(self.calls), 1)
 
     def test_steam_bootstraps_definition_then_enables_only_narrow_repo(self):
         repos.install_packages(name="Gaming", packages=GAMING_PACKAGES)

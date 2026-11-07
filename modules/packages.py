@@ -172,6 +172,24 @@ if use_hyprland:
         packages=HYPRLAND,
     )
 
+if use_niri or use_hyprland:
+    # Terra installs this unit outside systemd's standard search path.
+    osd_backend_unit = files.link(
+        name="Expose SwayOSD input backend unit",
+        path="/etc/systemd/system/swayosd-libinput-backend.service",
+        target="/usr/lib64/systemd/system/swayosd-libinput-backend.service",
+    )
+    systemd.daemon_reload(
+        name="Reload systemd for SwayOSD input backend",
+        _if=[osd_backend_unit.did_change],
+    )
+    systemd.service(
+        name="Enable SwayOSD lock-key detection",
+        service="swayosd-libinput-backend.service",
+        enabled=True,
+        running=True,
+    )
+
 if use_cosmic:
     install_packages(
         name="Install COSMIC desktop",

@@ -54,6 +54,10 @@ of the original spin. If basic is already installed, no swap is queued; if no
 identity is installed, basic is installed directly. This changes the release
 identity without selecting or removing a desktop environment.
 
+The same module queries the installed `system-release` provider and swaps any
+variant to `fedora-release`, after normalizing the identity. An already generic
+release is left unchanged. Installed DNF desktop environment groups are preserved.
+
 ## Desktop
 
 KDE Plasma and Hyprland are enabled in the example inventory. Desktop toggles control
@@ -107,7 +111,7 @@ For unbound packages, lower repository priority numbers are preferred:
 | --- | --- |
 | Fedora and Updates | 10 |
 | RPM Fusion and Fedora Cisco OpenH264 | 20 |
-| Configured LibreWolf, VSCodium and NVIDIA repositories | 30 |
+| Configured LibreWolf and VSCodium repositories | 30 |
 | Selected Hyprland COPR | 40 |
 | Terra | 50 |
 | Other repositories | 99 |
@@ -125,7 +129,12 @@ already-installed packages. If a bound source is unavailable, DNF cannot fall
 back to another repository for that package; an update may leave it installed
 without upgrading it.
 
-- Detected NVIDIA hardware selects `nvidia-open` and NVIDIA's Fedora 44 CUDA repo.
+- Detected NVIDIA hardware selects RPM Fusion's `akmod-nvidia-open`,
+  `xorg-x11-drv-nvidia`, and `xorg-x11-drv-nvidia-cuda` (driver compute utilities
+  and persistence daemon, not the CUDA toolkit), with `akmods` and
+  `kernel-devel-matched` for module builds. The narrow `rpmfusion-nonfree-nvidia-driver`
+  repository is supplied by `fedora-workstation-repositories` and enabled before installation.
+  Existing drivers and the old CUDA repository must be removed manually before migration.
 - Development selects VSCodium from its repository and Zed from Terra.
 - Hyprland selects its COPR. Niri itself comes from Fedora.
 - Wayland session extras (`uwsm`, `sway-audio-idle-inhibit`) require Terra.
@@ -161,7 +170,7 @@ Native codecs use RPM Fusion Free's full `ffmpeg`, VLC freeworld plugins, and
 GStreamer plugins, plus Cisco OpenH264. `modules/multimedia.py` runs from the
 package module before desktop apps. It replaces `ffmpeg-free` in one transaction,
 or installs full FFmpeg when absent; subsequent runs skip the replacement.
-The NVIDIA driver source is unchanged. This does not configure GPU video acceleration.
+The codec selection does not configure GPU video acceleration.
 
 Secret portal preferences in the dotfiles use `oo7-portal;gnome-keyring;`.
 Fedora 44 installs GNOME Keyring and its PAM module; Fedora 45+ selects

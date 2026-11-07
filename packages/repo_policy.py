@@ -20,7 +20,6 @@ REPOSITORY_PRIORITIES = {
     "fedora-cisco-openh264": 20,
     "librewolf": 30,
     "gitlab.com_paulcarroty_vscodium_repo": 30,
-    "cuda-fedora*-*": 30,
     "copr:copr.fedorainfracloud.org:lionheartp:Hyprland*": 40,
     "terra*": 50,
 }

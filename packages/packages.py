@@ -4,7 +4,6 @@ Fedora supplies packages unless PACKAGE_REPOSITORIES explicitly names a source.
 Selections are grouped by purpose; repository mappings only describe sources.
 """
 
-
 # --- Base system ---
 
 PACKAGE_GROUPS = [
@@ -37,6 +36,7 @@ PACKAGES = [
     "btop",
     "nvtop",
     "nmon",
+    "htop",
     "duf",
     "ncdu",
     "hwinfo",
@@ -113,12 +113,13 @@ def keyring_packages(fedora_major):
 
 # --- GPU drivers ---
 
-
 NVIDIA = [
-    "nvidia-open",
+    "xorg-x11-drv-nvidia",
+    "akmod-nvidia-open",
+    "xorg-x11-drv-nvidia-cuda",
 ]
 
-NVIDIA_BUILD_PACKAGES = ["kernel-devel-matched", "dkms"]
+NVIDIA_BUILD_PACKAGES = ["kernel-devel-matched", "akmods"]
 
 # --- Desktop environment ---
 
@@ -126,15 +127,31 @@ NVIDIA_BUILD_PACKAGES = ["kernel-devel-matched", "dkms"]
 WAYLAND_WM_COMMON = [
     "uwsm",
     "sway-audio-idle-inhibit",
+    "swayidle",
+    "gtklock",
+    "SwayOSD",
+    "mako",
+    "waybar",
+    "python3-waypaper",
+    "swaybg",
+    "flameshot",
+    "fuzzel",
+    "walker",
+    "elephant",
+    "elephant-desktopapplications",
+    "elephant-files",
+    "fd-find",
     # Authentication & secrets
     "mate-polkit",
     "xdg-user-dirs",
     "xdg-user-dirs-gtk",
     "brightnessctl",
     "playerctl",
-    # Qt/GTK application theming
-    "qt6ct",
-    "qt5ct",
+    # Qt/GTK application theming (currently managed via plasma and env definition.)
+    # "qt6ct",
+    # "qt5ct",
+    "gammastep-indicator",
+    "pavucontrol-qt",
 ]
 
 NOCTALIA = [
@@ -293,9 +310,12 @@ PACKAGE_REPOSITORIES = {
     "mozilla-openh264": "fedora_cisco_openh264",
     "librewolf": "librewolf",
     "steam": "rpmfusion_nonfree_steam",
-    "nvidia-open": "nvidia_cuda",
+    "xorg-x11-drv-nvidia": "rpmfusion_nonfree_nvidia",
+    "akmod-nvidia-open": "rpmfusion_nonfree_nvidia",
+    "xorg-x11-drv-nvidia-cuda": "rpmfusion_nonfree_nvidia",
     "codium": "vscodium",
     "hyprland": "copr_hyprland",
+    "python3-waypaper": "terra",
     "xdg-desktop-portal-hyprland": "copr_hyprland",
     "hyprshutdown": "copr_hyprland",
     "hyprlauncher": "copr_hyprland",
@@ -309,5 +329,10 @@ PACKAGE_REPOSITORIES = {
     "zed": "terra",
     "zed-cli": "terra",
     "sway-audio-idle-inhibit": "terra",
+    "SwayOSD": "terra",
+    "walker": "terra",
+    "elephant": "terra",
+    "elephant-desktopapplications": "terra",
+    "elephant-files": "terra",
     "uwsm": "terra",
 }

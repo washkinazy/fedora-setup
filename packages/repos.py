@@ -60,13 +60,10 @@ REPOS = {
             ),
         ],
     },
-    "nvidia_cuda": {
-        "kind": "repofile",
-        "id": "cuda-fedora44-x86_64",
-        "url": (
-            "https://developer.download.nvidia.com/compute/cuda/repos/"
-            "fedora44/x86_64/cuda-fedora44.repo"
-        ),
+    "rpmfusion_nonfree_nvidia": {
+        "kind": "builtin",
+        "id": "rpmfusion-nonfree-nvidia-driver",
+        "prerequisites": ["fedora-workstation-repositories"],
     },
 }
 

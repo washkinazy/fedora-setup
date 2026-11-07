@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-from pyinfra.operations import files, systemd
+from pyinfra.operations import files
 
 from packages.packages import NVIDIA, NVIDIA_BUILD_PACKAGES
 from packages.repos import install_packages
@@ -50,16 +50,8 @@ if "nvidia" in gpu_vendors:
     )
 
     install_packages(
-        name="Install NVIDIA open driver (nvidia-open)",
+        name="Install RPM Fusion NVIDIA driver and open kernel module",
         packages=NVIDIA,
-    )
-
-    # Enable without starting; the new kernel module loads after reboot.
-    systemd.service(
-        name="Enable NVIDIA persistence daemon",
-        service="nvidia-persistenced",
-        running=None,
-        enabled=True,
     )
 
 # --- Logitech mouse resume fix ---

@@ -32,9 +32,10 @@ class RepositoryPolicyTests(unittest.TestCase):
             "fedora-cisco-openh264": (20, {"steam", "codium"}),
             "rpmfusion-nonfree-steam": (20, {"codium"}),
             "gitlab.com_paulcarroty_vscodium_repo": (30, {"steam"}),
-            "cuda-fedora44-x86_64": (30, {"steam", "codium"}),
+            "cuda-fedora44-x86_64": (99, {"steam", "codium"}),
             "copr:copr.fedorainfracloud.org:lionheartp:Hyprland": (40, {"steam", "codium"}),
             "terra": (50, {"steam", "codium"}),
+            "rpmfusion-nonfree-nvidia-driver": (20, {"steam", "codium"}),
             "new-unmanaged-repo": (99, {"steam", "codium"}),
         }
         with tempfile.TemporaryDirectory() as temporary:
