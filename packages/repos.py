@@ -45,6 +45,10 @@ REPOS = {
         "kind": "copr",
         "copr": "lionheartp/Hyprland",
     },
+    "copr_vigil": {
+        "kind": "copr",
+        "copr": "washkinazy/vigil",
+    },
     "vscodium": {
         "kind": "commands",
         "id": "gitlab.com_paulcarroty_vscodium_repo",
